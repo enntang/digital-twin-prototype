@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import { copilotByRoute, trackingCopilot, type CopilotQA } from '../../data/copilot'
+import { useLocation, useSearchParams } from 'react-router-dom'
+import { copilotByRoute, equipmentCopilot, trackingCopilot, type CopilotQA } from '../../data/copilot'
+import { isEquipmentId } from '../../data/equipment'
 import { buildTracking } from '../../data/tracking'
 import { useScenario } from '../../store/scenario'
 
@@ -22,17 +23,21 @@ function Answer({ text, typing }: { text: string; typing: boolean }) {
 
 export function Copilot() {
   const { pathname } = useLocation()
+  const [params] = useSearchParams()
+  // P07 設備深入檢視開啟時，改用該設備的預設問答
+  const eqParam = params.get('equipment')
+  const equipmentId = isEquipmentId(eqParam) ? eqParam : null
   const decision = useScenario((s) => s.decision)
-  const ctx = useMemo(
-    () => (pathname === '/tracking' && decision ? trackingCopilot(buildTracking(decision)) : copilotByRoute[pathname] ?? copilotByRoute['/overview']),
-    [pathname, decision],
-  )
+  const ctx = useMemo(() => {
+    if (equipmentId) return equipmentCopilot(equipmentId)
+    return pathname === '/tracking' && decision ? trackingCopilot(buildTracking(decision)) : copilotByRoute[pathname] ?? copilotByRoute['/overview']
+  }, [pathname, decision, equipmentId])
   const [open, setOpen] = useState(false)
   const [asked, setAsked] = useState<CopilotQA[]>([])
   const listRef = useRef<HTMLDivElement>(null)
 
   // 換畫面就換一組情境問答
-  useEffect(() => setAsked([]), [pathname])
+  useEffect(() => setAsked([]), [pathname, equipmentId])
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [asked])
@@ -49,7 +54,7 @@ export function Copilot() {
       </button>
 
       <aside
-        className={`fixed top-16 right-0 bottom-0 z-30 flex w-[380px] flex-col border-l border-line bg-panel/95 backdrop-blur-md transition-transform duration-300 ${
+        className={`fixed top-16 right-0 bottom-0 z-40 flex w-[380px] flex-col border-l border-line bg-panel/95 backdrop-blur-md transition-transform duration-300 ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >

@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { RiskMatrix } from '../../components/charts/RiskMatrix'
 import { RiskTrend } from '../../components/charts/RiskTrend'
 import { Panel, RiskBadge } from '../../components/ui'
@@ -14,6 +14,12 @@ export function RiskIntel() {
   const { selectedRiskId, selectedPlanId, selectRisk, selectPlan } = useScenario()
   const [analysisOpen, setAnalysisOpen] = useState(false)
   const closeAnalysis = useCallback(() => setAnalysisOpen(false), [])
+  const location = useLocation()
+
+  // 由 P07 設備檢視跳回選方案時，收合分析 Panel 讓方案卡片可見
+  useEffect(() => {
+    if (location.state && 'focusPlan' in location.state) setAnalysisOpen(false)
+  }, [location.key, location.state])
 
   const risk = riskById[selectedRiskId] ?? risks[0]
   const detail = riskDetail[risk.id]

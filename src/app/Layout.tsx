@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { Copilot } from '../components/copilot/Copilot'
 import { DemoTag } from '../components/ui'
 import { SCENARIO_NOW } from '../data/scenario'
+import { EquipmentView } from '../pages/Equipment/EquipmentView'
 
 const steps = [
   { to: '/overview', no: '01', label: '營運總覽' },
@@ -54,6 +55,7 @@ export function Layout() {
       <main className="min-h-0 flex-1">
         <Outlet />
       </main>
+      <EquipmentView />
       <Copilot />
     </div>
   )

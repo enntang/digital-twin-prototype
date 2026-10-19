@@ -3,6 +3,7 @@ import { RiskBadge } from '../../components/ui'
 import { evidenceSourceLabel, type EdgeKind, type EvidenceSource, type GraphNode, type RiskAnalysis } from '../../data/riskIntel'
 import { siteById, type Risk } from '../../data/scenario'
 import { color } from '../../theme/tokens'
+import { useEquipmentRoute } from '../Equipment/useEquipmentRoute'
 
 const edgeColor: Record<EdgeKind, string> = {
   direct: color.cyan,
@@ -24,7 +25,7 @@ const sourceColor: Record<EvidenceSource, string> = {
 }
 
 // Dependency Graph：左側成因 → 中央核心事件 → 右側影響項目
-function DependencyGraph({ analysis }: { analysis: RiskAnalysis }) {
+function DependencyGraph({ analysis, onOpenEquipment }: { analysis: RiskAnalysis; onOpenEquipment: (n: GraphNode) => void }) {
   const W = 520
   const H = 260
   const boxW = 150
@@ -33,9 +34,30 @@ function DependencyGraph({ analysis }: { analysis: RiskAnalysis }) {
   const cy = H / 2
   const ys = (n: number) => Array.from({ length: n }, (_, i) => (H / n) * (i + 0.5))
 
+  // 指向特定設備的成因可點擊，進入 P07 設備深入檢視
   const node = (n: GraphNode, x: number, y: number, key: string, tone: string) => (
-    <g key={key}>
-      <rect x={x} y={y - boxH / 2} width={boxW} height={boxH} rx={6} fill={color.bg} stroke={tone} strokeOpacity={0.6} />
+    <g
+      key={key}
+      onClick={n.equipment ? () => onOpenEquipment(n) : undefined}
+      className={n.equipment ? 'group cursor-pointer' : undefined}
+    >
+      {n.equipment && <title>檢視設備</title>}
+      <rect
+        x={x}
+        y={y - boxH / 2}
+        width={boxW}
+        height={boxH}
+        rx={6}
+        fill={color.bg}
+        stroke={n.equipment ? color.cyan : tone}
+        strokeOpacity={n.equipment ? 0.8 : 0.6}
+        className={n.equipment ? 'transition group-hover:fill-[#0c2a4a]' : undefined}
+      />
+      {n.equipment && (
+        <text x={x + boxW - 8} y={y - 8} textAnchor="end" fill={color.cyan} fontSize={11}>
+          ↗
+        </text>
+      )}
       <text x={x + 10} y={n.sub ? y - 3 : y + 4} fill={color.ink} fontSize={12}>
         {n.label}
       </text>
@@ -106,6 +128,7 @@ export function RiskAnalysisPanel({ risk, analysis, open, onClose }: {
   onClose: () => void
 }) {
   const [filter, setFilter] = useState<EvidenceFilter>('all')
+  const { open: openEquipment } = useEquipmentRoute()
   useEffect(() => setFilter('all'), [risk.id])
 
   useEffect(() => {
@@ -184,7 +207,7 @@ export function RiskAnalysisPanel({ risk, analysis, open, onClose }: {
               <span>影響項目</span>
             </div>
             <div className="rounded-md border border-line bg-bg/40 p-3">
-              <DependencyGraph analysis={analysis} />
+              <DependencyGraph analysis={analysis} onOpenEquipment={(n) => n.equipment && openEquipment(n.equipment, { from: 'analysis' })} />
             </div>
           </section>
 
@@ -208,7 +231,7 @@ export function RiskAnalysisPanel({ risk, analysis, open, onClose }: {
             </div>
             <ul className="divide-y divide-line/60 rounded-md border border-line">
               {evidence.map((e) => (
-                <li key={e.time + e.title} className="grid grid-cols-[44px_56px_1fr_auto] items-center gap-2 px-3 py-2 text-xs">
+                <li key={e.time + e.title} className="grid grid-cols-[44px_56px_1fr_auto_64px] items-center gap-2 px-3 py-2 text-xs">
                   <span className="font-mono text-mute">{e.time}</span>
                   <span className="flex items-center gap-1.5 text-ink-2">
                     <span className="h-1.5 w-1.5 rounded-full" style={{ background: sourceColor[e.source] }} />
@@ -216,6 +239,16 @@ export function RiskAnalysisPanel({ risk, analysis, open, onClose }: {
                   </span>
                   <span className="text-ink">{e.title}</span>
                   <span className="text-mute">{e.detail}</span>
+                  {e.source === 'device' && e.equipment?.length === 1 ? (
+                    <button
+                      onClick={() => openEquipment(e.equipment![0], { from: 'analysis', event: e.time })}
+                      className="text-right whitespace-nowrap text-cyan hover:underline"
+                    >
+                      檢視設備 →
+                    </button>
+                  ) : (
+                    <span />
+                  )}
                 </li>
               ))}
             </ul>

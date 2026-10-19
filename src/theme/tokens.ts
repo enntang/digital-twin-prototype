@@ -1,3 +1,4 @@
+import type { EquipStatus } from '../data/equipment'
 import type { RiskCategory, RiskLevel } from '../data/scenario'
 
 // ECharts 無法讀 CSS 變數，這裡與 index.css 的 @theme 保持同值
@@ -35,4 +36,12 @@ export const categoryColor: Record<RiskCategory, string> = {
   capacity: color.mid,
   labor: color.accent,
   transport: color.violet,
+}
+
+// P07 設備狀態：正常／注意（黃）／警示（橘）／停機（紅）
+export const equipStatusColor: Record<EquipStatus, string> = {
+  normal: color.low,
+  watch: color.watch,
+  alert: color.mid,
+  down: color.high,
 }

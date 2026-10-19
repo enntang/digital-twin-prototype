@@ -1,5 +1,7 @@
+import { isEquipmentId } from '../../data/equipment'
 import { floorZones, type SiteId, type ZoneStatus } from '../../data/scenario'
 import { color } from '../../theme/tokens'
+import { useEquipmentRoute } from '../Equipment/useEquipmentRoute'
 
 const statusStyle: Record<ZoneStatus, { stroke: string; fill: string; label: string }> = {
   normal: { stroke: color.low, fill: 'rgba(34,197,94,0.08)', label: '正常' },
@@ -8,9 +10,10 @@ const statusStyle: Record<ZoneStatus, { stroke: string; fill: string; label: str
   down: { stroke: '#ff2d55', fill: 'rgba(255,45,85,0.28)', label: '停機' },
 }
 
-// 樓層層級的 2D 平面示意（PRD 不做 3D 倉庫模型）
+// 樓層層級的 2D 平面示意（PRD 不做 3D 倉庫模型）；異常分揀機可點擊進入 P07 設備深入檢視
 export function FloorPlan({ siteId }: { siteId: SiteId }) {
   const zones = floorZones[siteId]
+  const { open } = useEquipmentRoute()
   return (
     <div className="flex h-full flex-col px-6 pt-14 pb-4">
       <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" className="min-h-0 flex-1">
@@ -22,8 +25,14 @@ export function FloorPlan({ siteId }: { siteId: SiteId }) {
         <rect x="0" y="0" width="100" height="100" rx="1.5" fill="url(#fp-grid)" stroke={color.lineStrong} strokeWidth="0.4" />
         {zones.map((z) => {
           const s = statusStyle[z.status]
+          const eqId = `${siteId}-${z.id}`
+          const drill = (z.status === 'alert' || z.status === 'down') && isEquipmentId(eqId)
           return (
-            <g key={z.id}>
+            <g
+              key={z.id}
+              onClick={drill ? () => open(eqId, { from: 'floor' }) : undefined}
+              className={drill ? 'group cursor-pointer' : undefined}
+            >
               <rect
                 x={z.x}
                 y={z.y}
@@ -44,6 +53,11 @@ export function FloorPlan({ siteId }: { siteId: SiteId }) {
               {z.note && (
                 <text x={z.x + 1.5} y={z.y + 10.3} fontSize="1.7" fill={color.ink2}>
                   {z.note}
+                </text>
+              )}
+              {drill && (
+                <text x={z.x + 1.5} y={z.y + z.h - 2} fontSize="1.7" fill={color.cyan} className="opacity-70 group-hover:opacity-100">
+                  檢視設備 →
                 </text>
               )}
             </g>

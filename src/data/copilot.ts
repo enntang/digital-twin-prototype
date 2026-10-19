@@ -1,3 +1,5 @@
+import { equipment, equipmentLabel, equipStatusLabel, type EquipmentId } from './equipment'
+import { siteById } from './scenario'
 import type { Tracking } from './tracking'
 
 // AI Copilot 預設問答，依畫面切換（PRD §5.1，不串接 LLM）
@@ -88,6 +90,74 @@ export function trackingCopilot(t: Tracking): CopilotContext {
       {
         q: '接下來還需要注意什麼？',
         a: `${t.tasks.filter((x) => x.status !== 'done').map((x) => `「${x.name}」`).join('、')}尚未完成，建議持續觀察 10/18 之後的訂單量變化，並於 10/20 進入成效觀察階段。`,
+      },
+    ],
+  }
+}
+
+// P07 設備深入檢視（PRD §4.7.7）
+const equipmentQA: Partial<Record<EquipmentId, CopilotQA[]>> = {
+  'tpe-a3': [
+    {
+      q: '分揀機 A3 為什麼停機？多久能恢復？',
+      a: '14:18 電力短暫波動（210V → 185V）後，A3 第 3 段驅動馬達負載異常，14:28 觸發 E21 過載保護，分流模組 3 停擺、主線中斷。依維護紀錄，檢查驅動模組並重新校正約需 4–6 小時；若排入提前保養，可在 10/16 前恢復全產能。',
+    },
+    {
+      q: '這台設備對本週出貨的影響有多大？',
+      a: 'A3 停機使台北 A 可用分揀產能下降約 33%，與 A1 降速疊加後出貨處理量下降 60%，隊列等候 3.2 小時。若未處理，10/17–10/19 約 2,103 件訂單可能延遲。',
+    },
+    {
+      q: '提前保養能解決這個問題嗎？',
+      a: '可以解除設備面的瓶頸：方案 C 將 A1、A3 保養提前，預估延遲訂單減少 40%，成本 NT$ 18,000。不過訂單量成長 12% 仍在，建議與方案 A 跨據點分流一併評估。',
+    },
+  ],
+  'tpe-a1': [
+    {
+      q: '分揀機 A1 為什麼降速？',
+      a: '馬達溫度自 14:20 起由 65°C 升至 85°C，超出正常範圍（0–70°C），系統自動將主線降速 60% 以保護驅動馬達 2。14:18 的電力波動可能是溫升的誘因。',
+    },
+    {
+      q: '這台設備對本週出貨的影響有多大？',
+      a: 'A1 降速使台北 A 分揀產能下降約 20%，與 A3 停機疊加後出貨處理量下降 60%。若溫度持續偏高，A1 也有停機風險。',
+    },
+    {
+      q: '提前保養能解決這個問題嗎？',
+      a: '方案 C 會同時處理 A1、A3，預估延遲訂單減少 40%。A1 建議優先檢查驅動馬達 2 的散熱與軸承。',
+    },
+  ],
+  'txg-a2': [
+    {
+      q: 'Sorter B 為什麼被判定為高風險？',
+      a: '軸承振動 4.9 mm/s（較上週 +53%）、軸承溫度 68°C，且保養已逾期 12 天，B 區段分揀錯誤率由 0.4% 升至 1.1%。預測 10/16 振動將超過 7.1 mm/s 停機警戒值。',
+    },
+    {
+      q: '這台設備對本週出貨的影響有多大？',
+      a: '若 10/16–10/17 異常停機，分揀產能約下降 35%，約 1,520 件訂單可能延遲，並影響台南 D 的轉運時程。',
+    },
+    {
+      q: '提前保養能解決這個問題嗎？',
+      a: '可以。方案 C 提前保養 Sorter B，預估延遲訂單減少 55%，成本 NT$ 18,000，是三個方案中效果最好的。',
+    },
+  ],
+}
+
+export function equipmentCopilot(id: EquipmentId): CopilotContext {
+  const e = equipment[id]
+  const site = siteById[e.siteId]
+  return {
+    label: `設備檢視 · ${site.name} ${equipmentLabel(e)}`,
+    greeting:
+      e.status === 'normal'
+        ? `${site.name} ${equipmentLabel(e)} 目前運轉正常，各項指標皆在正常範圍內。`
+        : `${site.name} ${equipmentLabel(e)} 目前為「${equipStatusLabel[e.status]}」：${e.headline}。`,
+    qa: equipmentQA[id] ?? [
+      {
+        q: '這台設備目前狀況如何？',
+        a: `${equipmentLabel(e)} 運轉正常，處理量 ${e.metrics[0].value.toLocaleString()} 件/時，下次保養排定於 ${e.maintenance.next}。`,
+      },
+      {
+        q: '這台設備能分擔其他分揀機的負載嗎？',
+        a: `目前負載約 ${Math.round((e.metrics[0].value / 6000) * 100)}%，可短時間提高處理量，但長時間滿載會增加軸承與馬達磨耗，建議搭配排班調整。`,
       },
     ],
   }

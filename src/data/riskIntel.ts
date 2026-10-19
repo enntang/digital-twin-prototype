@@ -1,5 +1,6 @@
 // P02 風險預測 / P03 風險分析 的示範資料，數字與 scenario.ts 的風險事件一致
 import type { PlanId } from '../store/scenario'
+import type { EquipmentId } from './equipment'
 import type { SiteId } from './scenario'
 
 // 預測區間：10/11–10/13 實際、10/14 為現在、10/15–10/20 預測
@@ -42,6 +43,8 @@ export interface GraphNode {
   label: string
   sub?: string
   kind: EdgeKind
+  // 成因指向特定設備時，可進入 P07 設備深入檢視
+  equipment?: EquipmentId
 }
 
 export type EvidenceSource = 'device' | 'wms' | 'power' | 'record'
@@ -58,6 +61,8 @@ export interface Evidence {
   source: EvidenceSource
   title: string
   detail: string
+  // 相關設備：P07 事件時間軸依此彙整，與 P03 使用同一份資料
+  equipment?: EquipmentId[]
 }
 
 export interface RiskAnalysis {
@@ -97,8 +102,8 @@ export const riskDetail: Record<string, RiskDetail> = {
       core: { label: '分揀產能下降', sub: 'A3 停機 · A1 降速' },
       causes: [
         { label: '訂單量成長 12%', sub: '近 7 天', kind: 'direct' },
-        { label: '分揀機 A3 異常停機', sub: 'Error Code E21', kind: 'direct' },
-        { label: '分揀機 A1 降速 60%', sub: '馬達溫度 85°C', kind: 'direct' },
+        { label: '分揀機 A3 異常停機', sub: 'Error Code E21', kind: 'direct', equipment: 'tpe-a3' },
+        { label: '分揀機 A1 降速 60%', sub: '馬達溫度 85°C', kind: 'direct', equipment: 'tpe-a1' },
         { label: '電力波動', sub: '210V → 185V', kind: 'indirect' },
       ],
       impacts: [
@@ -108,13 +113,13 @@ export const riskDetail: Record<string, RiskDetail> = {
         { label: '波及桃園 B、台中 C', kind: 'possible' },
       ],
       evidence: [
-        { time: '14:32', source: 'wms', title: '訂單處理速度下降 60%', detail: '目前隊列 3,892 件' },
-        { time: '14:28', source: 'device', title: '分揀機 A3 自動停機', detail: 'Error Code: E21' },
-        { time: '14:25', source: 'device', title: '馬達溫度達 85°C', detail: '正常範圍 0–70°C' },
-        { time: '14:20', source: 'device', title: '馬達溫度開始上升', detail: '由 65°C 升至 75°C' },
-        { time: '14:18', source: 'power', title: '電力系統短暫波動', detail: '電壓 210V → 185V（3 分鐘）' },
-        { time: '14:15', source: 'wms', title: '訂單處理延遲', detail: '隊列量開始增加' },
-        { time: '14:10', source: 'record', title: '維護紀錄', detail: '上次保養：2026/09/15' },
+        { time: '14:32', source: 'wms', title: '訂單處理速度下降 60%', detail: '目前隊列 3,892 件', equipment: ['tpe-a1', 'tpe-a3'] },
+        { time: '14:28', source: 'device', title: '分揀機 A3 自動停機', detail: 'Error Code: E21', equipment: ['tpe-a3'] },
+        { time: '14:25', source: 'device', title: '馬達溫度達 85°C', detail: '正常範圍 0–70°C', equipment: ['tpe-a1'] },
+        { time: '14:20', source: 'device', title: '馬達溫度開始上升', detail: '由 65°C 升至 75°C', equipment: ['tpe-a1'] },
+        { time: '14:18', source: 'power', title: '電力系統短暫波動', detail: '電壓 210V → 185V（3 分鐘）', equipment: ['tpe-a1', 'tpe-a3'] },
+        { time: '14:15', source: 'wms', title: '訂單處理延遲', detail: '隊列量開始增加', equipment: ['tpe-a1', 'tpe-a3'] },
+        { time: '14:10', source: 'record', title: '維護紀錄', detail: '上次保養：2026/09/15', equipment: ['tpe-a1', 'tpe-a3'] },
       ],
       impactSummary: [
         '10/17–10/19 預測產能利用率最高 112%，約 2,103 件訂單可能延遲出貨。',
@@ -142,8 +147,8 @@ export const riskDetail: Record<string, RiskDetail> = {
     analysis: {
       core: { label: 'Sorter B 故障風險', sub: '振動 · 溫度持續上升' },
       causes: [
-        { label: '軸承磨耗', sub: '振動 4.9 mm/s', kind: 'direct' },
-        { label: '連續高負載運轉', sub: '利用率 88%', kind: 'direct' },
+        { label: '軸承磨耗', sub: '振動 4.9 mm/s', kind: 'direct', equipment: 'txg-a2' },
+        { label: '連續高負載運轉', sub: '利用率 88%', kind: 'direct', equipment: 'txg-a2' },
         { label: '保養週期延後', sub: '逾期 12 天', kind: 'indirect' },
       ],
       impacts: [
@@ -152,10 +157,10 @@ export const riskDetail: Record<string, RiskDetail> = {
         { label: '波及台南 D 配送', kind: 'possible' },
       ],
       evidence: [
-        { time: '13:50', source: 'device', title: 'Sorter B 振動值 4.9 mm/s', detail: '較上週上升 53%' },
-        { time: '13:42', source: 'device', title: '軸承溫度 68°C', detail: '正常範圍 0–60°C' },
-        { time: '12:30', source: 'wms', title: 'B 區段分揀錯誤率上升', detail: '0.4% → 1.1%' },
-        { time: '09:10', source: 'record', title: '保養排程逾期', detail: '原定 2026/10/02' },
+        { time: '13:50', source: 'device', title: 'Sorter B 振動值 4.9 mm/s', detail: '較上週上升 53%', equipment: ['txg-a2'] },
+        { time: '13:42', source: 'device', title: '軸承溫度 68°C', detail: '正常範圍 0–60°C', equipment: ['txg-a2'] },
+        { time: '12:30', source: 'wms', title: 'B 區段分揀錯誤率上升', detail: '0.4% → 1.1%', equipment: ['txg-a2'] },
+        { time: '09:10', source: 'record', title: '保養排程逾期', detail: '原定 2026/10/02', equipment: ['txg-a2'] },
       ],
       impactSummary: [
         '10/16–10/17 Sorter B 可能異常停機，分揀產能下降約 35%。',
