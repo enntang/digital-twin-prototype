@@ -1,4 +1,4 @@
-import type { RiskLevel } from '../data/scenario'
+import type { RiskCategory, RiskLevel } from '../data/scenario'
 
 // ECharts 無法讀 CSS 變數，這裡與 index.css 的 @theme 保持同值
 export const color = {
@@ -28,4 +28,11 @@ export const riskLabel: Record<RiskLevel, string> = {
   high: '高',
   mid: '中',
   low: '低',
+}
+
+export const categoryColor: Record<RiskCategory, string> = {
+  equipment: color.high,
+  capacity: color.mid,
+  labor: color.accent,
+  transport: color.violet,
 }

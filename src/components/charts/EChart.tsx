@@ -19,7 +19,10 @@ export function EChart({ option, className, onClick }: Props) {
     const instance = echarts.init(el.current, undefined, { renderer: 'canvas' })
     chart.current = instance
     instance.on('click', (p) => clickRef.current?.(p as ECElementEvent))
-    const ro = new ResizeObserver(() => instance.resize())
+    // 版面切換時容器可能短暫為 0，此時 resize 會讓 lines 特效的殘影圖層報錯
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width > 0 && entry.contentRect.height > 0) instance.resize()
+    })
     ro.observe(el.current)
     return () => {
       ro.disconnect()

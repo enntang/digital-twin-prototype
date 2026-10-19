@@ -3,7 +3,7 @@ import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import { EChart } from './EChart'
 import taiwanGeo from '../../data/taiwan.geo.json'
-import { flows as allFlows, siteById, sites, type Flow, type SiteId } from '../../data/scenario'
+import { flows as allFlows, siteById, sites, type Flow, type RiskLevel, type SiteId } from '../../data/scenario'
 import { color, riskColor } from '../../theme/tokens'
 
 echarts.registerMap('taiwan', taiwanGeo as unknown as Parameters<typeof echarts.registerMap>[1])
@@ -20,6 +20,12 @@ interface Props {
   flows?: Flow[]
   // 風險來源據點 → 受影響據點，以紅線標示
   impact?: { from: SiteId; to: SiteId[] } | null
+  // 策略調度路線（P04/P05），以指定顏色與箭頭標示
+  routes?: { from: SiteId; to: SiteId; color: string }[]
+  // 覆寫據點風險狀態（P05 After 地圖）
+  levels?: Partial<Record<SiteId, RiskLevel>>
+  // 據點標籤下方的第二行說明，例如「產能 95% → 82%」
+  notes?: Partial<Record<SiteId, string>>
   onSiteClick?: (id: SiteId) => void
   className?: string
 }
@@ -29,7 +35,7 @@ const labelPosition: Partial<Record<SiteId, 'left' | 'right'>> = { tyn: 'left' }
 
 const flowColor = (v: number) => (v >= 20000 ? color.cyan : v >= 10000 ? '#5b8cff' : color.violet)
 
-export function TaiwanMap({ view, selectedSiteId, showFlows = true, flows = allFlows, impact, onSiteClick, className }: Props) {
+export function TaiwanMap({ view, selectedSiteId, showFlows = true, flows = allFlows, impact, routes, levels, notes, onSiteClick, className }: Props) {
   const option = useMemo<EChartsOption>(() => {
     const geoBase = {
       map: 'taiwan',
@@ -73,6 +79,23 @@ export function TaiwanMap({ view, selectedSiteId, showFlows = true, flows = allF
         ]
       : []
 
+    const routeSeries = routes?.length
+      ? [
+          {
+            type: 'lines' as const,
+            geoIndex: 1,
+            zlevel: 3,
+            effect: { show: true, period: 2.2, trailLength: 0.4, symbol: 'arrow', symbolSize: 7 },
+            lineStyle: { width: 3, opacity: 0.95, curveness: 0.3 },
+            data: routes.map((r) => ({
+              coords: [siteById[r.from].coord, siteById[r.to].coord],
+              lineStyle: { color: r.color, shadowColor: r.color, shadowBlur: 12 },
+              effect: { color: r.color },
+            })),
+          },
+        ]
+      : []
+
     return {
       geo: [
         // 底層：下移並加光暈，做出地圖浮起的立體感
@@ -109,6 +132,7 @@ export function TaiwanMap({ view, selectedSiteId, showFlows = true, flows = allF
       series: [
         ...flowSeries,
         ...impactSeries,
+        ...routeSeries,
         {
           type: 'effectScatter',
           coordinateSystem: 'geo',
@@ -117,23 +141,26 @@ export function TaiwanMap({ view, selectedSiteId, showFlows = true, flows = allF
           rippleEffect: { scale: 3.2, brushType: 'stroke', period: 3 },
           data: sites.map((s) => {
             const selected = s.id === selectedSiteId
+            const level = levels?.[s.id] ?? s.risk
+            const note = notes?.[s.id]
             return {
               id: s.id,
               name: s.name,
               value: s.coord,
               symbolSize: selected ? 20 : 13,
               itemStyle: {
-                color: riskColor[s.risk],
+                color: riskColor[level],
                 borderColor: selected ? '#fff' : 'rgba(255,255,255,0.6)',
                 borderWidth: selected ? 3 : 1.5,
-                shadowColor: riskColor[s.risk],
+                shadowColor: riskColor[level],
                 shadowBlur: 16,
               },
               label: {
                 show: true,
                 position: labelPosition[s.id] ?? 'right',
                 distance: 10,
-                formatter: s.name,
+                formatter: note ? `{name|${s.name}}\n{note|${note}}` : s.name,
+                rich: { name: { fontSize: 13, fontWeight: 600, color: color.ink }, note: { fontSize: 11, color: color.ink2, padding: [3, 0, 0, 0] } },
                 color: color.ink,
                 fontSize: 13,
                 fontWeight: 600,
@@ -149,7 +176,7 @@ export function TaiwanMap({ view, selectedSiteId, showFlows = true, flows = allF
         },
       ],
     }
-  }, [view, selectedSiteId, showFlows, flows, impact, onSiteClick])
+  }, [view, selectedSiteId, showFlows, flows, impact, routes, levels, notes, onSiteClick])
 
   return (
     <EChart

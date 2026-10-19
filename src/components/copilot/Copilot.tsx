@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { copilotByRoute, type CopilotQA } from '../../data/copilot'
+import { copilotByRoute, trackingCopilot, type CopilotQA } from '../../data/copilot'
+import { buildTracking } from '../../data/tracking'
+import { useScenario } from '../../store/scenario'
 
 function useTypewriter(text: string, active: boolean) {
   const [n, setN] = useState(active ? 0 : text.length)
@@ -20,7 +22,11 @@ function Answer({ text, typing }: { text: string; typing: boolean }) {
 
 export function Copilot() {
   const { pathname } = useLocation()
-  const ctx = copilotByRoute[pathname] ?? copilotByRoute['/overview']
+  const decision = useScenario((s) => s.decision)
+  const ctx = useMemo(
+    () => (pathname === '/tracking' && decision ? trackingCopilot(buildTracking(decision)) : copilotByRoute[pathname] ?? copilotByRoute['/overview']),
+    [pathname, decision],
+  )
   const [open, setOpen] = useState(false)
   const [asked, setAsked] = useState<CopilotQA[]>([])
   const listRef = useRef<HTMLDivElement>(null)
